@@ -2,7 +2,7 @@
 // Communicates with the Rust backend over a Named Pipe via Tauri commands.
 // In development mode, falls back to a mock data provider.
 
-import type { Device, Stats, PolicyPayload, IpcResponse, UpdateInfo } from "./types";
+import type { Device, Stats, PolicyPayload, UpdateInfo } from "./types";
 
 const IS_TAURI = "__TAURI__" in window;
 
