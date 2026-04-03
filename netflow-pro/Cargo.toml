@@ -1,0 +1,71 @@
+[package]
+name = "netflow-pro"
+version = "0.1.0"
+edition = "2021"
+authors = ["NetFlow-Pro Team"]
+description = "High-performance real-time network monitor and per-device bandwidth throttler for Windows"
+license = "MIT"
+
+[[bin]]
+name = "netflow-pro-service"
+path = "src/main.rs"
+
+[dependencies]
+# WinDivert FFI bindings for packet interception
+windivert = "0.6"
+windivert-sys = "0.6"
+
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Serialization / IPC
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# IPC via local named pipes / Unix-domain sockets
+interprocess = { version = "2", features = ["tokio"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+
+# Network utilities
+pnet = "0.35"
+pnet_datalink = "0.35"
+
+# MAC-address vendor lookup (OUI database)
+oui = "0.7"
+
+# Concurrency primitives
+dashmap = "6"
+parking_lot = "0.12"
+crossbeam = "0.8"
+
+# Windows service framework
+windows-service = "0.7"
+
+# Time utilities
+chrono = "0.4"
+
+# Error handling
+anyhow = "1"
+thiserror = "2"
+
+# Byte manipulation
+byteorder = "1"
+
+# UUID for session IDs
+uuid = { version = "1", features = ["v4"] }
+
+[build-dependencies]
+winres = "0.1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 1

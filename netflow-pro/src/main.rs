@@ -1,0 +1,176 @@
+//! NetFlow-Pro — Real-time network monitor and per-device bandwidth throttler.
+//!
+//! Runs as a high-priority Windows Service. Intercepts all traffic via WinDivert,
+//! applies token-bucket throttling per device, and exposes an IPC control channel.
+
+mod engine;
+mod discovery;
+mod ipc;
+mod state;
+mod throttle;
+
+use anyhow::Result;
+use std::sync::Arc;
+use tracing::{info, error};
+
+use crate::state::SharedState;
+
+// ---------------------------------------------------------------------------
+// Windows Service boilerplate
+// ---------------------------------------------------------------------------
+
+#[cfg(windows)]
+fn main() -> Result<()> {
+    // When launched by the SCM, run as a service.
+    // When launched from a console (dev mode), run directly.
+    if let Err(_) = windows_service_main() {
+        run_standalone()?;
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn main() -> Result<()> {
+    run_standalone()
+}
+
+/// Attempt to register with the Windows Service Control Manager.
+#[cfg(windows)]
+fn windows_service_main() -> Result<()> {
+    use windows_service::service_dispatcher;
+    service_dispatcher::start("NetFlowPro", ffi_service_main)?;
+    Ok(())
+}
+
+#[cfg(windows)]
+windows_service::define_windows_service!(ffi_service_main, service_main);
+
+#[cfg(windows)]
+fn service_main(args: Vec<std::ffi::OsString>) {
+    if let Err(e) = run_service(args) {
+        error!("Service failed: {e:#}");
+    }
+}
+
+#[cfg(windows)]
+fn run_service(_args: Vec<std::ffi::OsString>) -> Result<()> {
+    use windows_service::service::*;
+    use windows_service::service_control_handler::{self, ServiceControlHandlerResult};
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    let (shutdown_tx, shutdown_rx) = mpsc::channel::<()>();
+
+    let event_handler = move |control_event| -> ServiceControlHandlerResult {
+        match control_event {
+            ServiceControl::Stop | ServiceControl::Shutdown => {
+                let _ = shutdown_tx.send(());
+                ServiceControlHandlerResult::NoError
+            }
+            ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
+            _ => ServiceControlHandlerResult::NotImplemented,
+        }
+    };
+
+    let status_handle = service_control_handler::register("NetFlowPro", event_handler)?;
+
+    status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: ServiceState::Running,
+        controls_accepted: ServiceControlAccept::STOP | ServiceControlAccept::SHUTDOWN,
+        exit_code: ServiceExitCode::Win32(0),
+        checkpoint: 0,
+        wait_hint: Duration::default(),
+        process_id: None,
+    })?;
+
+    // Build and run the core runtime
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(4)
+        .thread_name("netflow-worker")
+        .build()?;
+
+    rt.block_on(async {
+        let state = Arc::new(SharedState::new());
+        let state2 = Arc::clone(&state);
+        let state3 = Arc::clone(&state);
+        let state4 = Arc::clone(&state);
+
+        // Spawn subsystems
+        let engine_handle = tokio::spawn(engine::run_packet_engine(state2));
+        let discovery_handle = tokio::spawn(discovery::run_discovery_loop(state3));
+        let ipc_handle = tokio::spawn(ipc::run_ipc_server(state4));
+
+        // Wait for SCM stop signal
+        let _ = shutdown_rx.recv();
+        info!("Received stop signal, shutting down…");
+
+        state.request_shutdown();
+        let _ = tokio::join!(engine_handle, discovery_handle, ipc_handle);
+    });
+
+    status_handle.set_service_status(ServiceStatus {
+        service_type: ServiceType::OWN_PROCESS,
+        current_state: ServiceState::Stopped,
+        controls_accepted: ServiceControlAccept::empty(),
+        exit_code: ServiceExitCode::Win32(0),
+        checkpoint: 0,
+        wait_hint: Duration::default(),
+        process_id: None,
+    })?;
+
+    Ok(())
+}
+
+/// Standalone console mode — for development and testing.
+fn run_standalone() -> Result<()> {
+    // Initialise structured logging
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| "netflow_pro=debug,info".into()),
+        )
+        .with_target(true)
+        .init();
+
+    info!("NetFlow-Pro starting in standalone (console) mode");
+
+    // Raise process priority
+    #[cfg(windows)]
+    unsafe {
+        use windows_sys::Win32::System::Threading::*;
+        SetPriorityClass(GetCurrentProcess(), HIGH_PRIORITY_CLASS);
+    }
+
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .worker_threads(4)
+        .thread_name("netflow-worker")
+        .build()?;
+
+    rt.block_on(async {
+        let state = Arc::new(SharedState::new());
+
+        let s1 = Arc::clone(&state);
+        let s2 = Arc::clone(&state);
+        let s3 = Arc::clone(&state);
+
+        // Spawn the three core subsystems
+        let engine_handle = tokio::spawn(engine::run_packet_engine(s1));
+        let discovery_handle = tokio::spawn(discovery::run_discovery_loop(s2));
+        let ipc_handle = tokio::spawn(ipc::run_ipc_server(s3));
+
+        info!("All subsystems started. Press Ctrl+C to stop.");
+
+        // Graceful shutdown on Ctrl+C
+        tokio::signal::ctrl_c().await.ok();
+        info!("Ctrl+C received, shutting down…");
+        state.request_shutdown();
+
+        let _ = tokio::join!(engine_handle, discovery_handle, ipc_handle);
+        info!("NetFlow-Pro stopped.");
+    });
+
+    Ok(())
+}

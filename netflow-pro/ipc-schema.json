@@ -1,0 +1,213 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "NetFlow-Pro IPC Protocol",
+  "description": "JSON-over-Named-Pipe protocol between the Tauri UI and the Rust backend service. Messages are newline-delimited JSON.",
+
+  "definitions": {
+    "PolicyAllow": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "allow" }
+      },
+      "required": ["type"]
+    },
+    "PolicyThrottle": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "throttle" },
+        "download_kbps": {
+          "type": "integer",
+          "minimum": 100,
+          "description": "Download speed limit in kilobits per second."
+        },
+        "upload_kbps": {
+          "type": "integer",
+          "minimum": 100,
+          "description": "Upload speed limit in kilobits per second."
+        }
+      },
+      "required": ["type", "download_kbps", "upload_kbps"]
+    },
+    "PolicyBlock": {
+      "type": "object",
+      "properties": {
+        "type": { "const": "block" }
+      },
+      "required": ["type"]
+    },
+    "PolicyPayload": {
+      "oneOf": [
+        { "$ref": "#/definitions/PolicyAllow" },
+        { "$ref": "#/definitions/PolicyThrottle" },
+        { "$ref": "#/definitions/PolicyBlock" }
+      ]
+    },
+
+    "Request_GetDevices": {
+      "type": "object",
+      "properties": {
+        "method": { "const": "get_devices" }
+      },
+      "required": ["method"]
+    },
+    "Request_SetPolicy": {
+      "type": "object",
+      "properties": {
+        "method": { "const": "set_policy" },
+        "params": {
+          "type": "object",
+          "properties": {
+            "mac": {
+              "type": "string",
+              "pattern": "^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$",
+              "description": "MAC address in AA:BB:CC:DD:EE:FF format."
+            },
+            "policy": { "$ref": "#/definitions/PolicyPayload" }
+          },
+          "required": ["mac", "policy"]
+        }
+      },
+      "required": ["method", "params"]
+    },
+    "Request_TriggerScan": {
+      "type": "object",
+      "properties": {
+        "method": { "const": "trigger_scan" }
+      },
+      "required": ["method"]
+    },
+    "Request_GetStats": {
+      "type": "object",
+      "properties": {
+        "method": { "const": "get_stats" }
+      },
+      "required": ["method"]
+    },
+    "Request_Ping": {
+      "type": "object",
+      "properties": {
+        "method": { "const": "ping" }
+      },
+      "required": ["method"]
+    },
+
+    "IpcRequest": {
+      "oneOf": [
+        { "$ref": "#/definitions/Request_GetDevices" },
+        { "$ref": "#/definitions/Request_SetPolicy" },
+        { "$ref": "#/definitions/Request_TriggerScan" },
+        { "$ref": "#/definitions/Request_GetStats" },
+        { "$ref": "#/definitions/Request_Ping" }
+      ]
+    },
+
+    "DeviceDto": {
+      "type": "object",
+      "properties": {
+        "mac": { "type": "string" },
+        "ip": { "type": "string", "format": "ipv4" },
+        "hostname": { "type": "string" },
+        "vendor": { "type": "string" },
+        "policy": { "type": "string", "enum": ["allow", "throttle", "block"] },
+        "download_limit_kbps": { "type": ["integer", "null"] },
+        "upload_limit_kbps": { "type": ["integer", "null"] },
+        "download_bytes": { "type": "integer" },
+        "upload_bytes": { "type": "integer" }
+      },
+      "required": ["mac", "ip", "hostname", "vendor", "policy", "download_bytes", "upload_bytes"]
+    },
+
+    "StatsDto": {
+      "type": "object",
+      "properties": {
+        "total_download_bytes": { "type": "integer" },
+        "total_upload_bytes": { "type": "integer" },
+        "device_count": { "type": "integer" }
+      },
+      "required": ["total_download_bytes", "total_upload_bytes", "device_count"]
+    },
+
+    "IpcResponse_Ok": {
+      "type": "object",
+      "properties": {
+        "status": { "const": "ok" },
+        "data": {}
+      },
+      "required": ["status", "data"]
+    },
+    "IpcResponse_Error": {
+      "type": "object",
+      "properties": {
+        "status": { "const": "error" },
+        "message": { "type": "string" }
+      },
+      "required": ["status", "message"]
+    },
+    "IpcResponse": {
+      "oneOf": [
+        { "$ref": "#/definitions/IpcResponse_Ok" },
+        { "$ref": "#/definitions/IpcResponse_Error" }
+      ]
+    }
+  },
+
+  "examples": {
+    "get_devices_request": {
+      "method": "get_devices"
+    },
+    "get_devices_response": {
+      "status": "ok",
+      "data": [
+        {
+          "mac": "AA:BB:CC:DD:EE:01",
+          "ip": "192.168.1.10",
+          "hostname": "Gaming-PC",
+          "vendor": "Intel Corp",
+          "policy": "allow",
+          "download_limit_kbps": null,
+          "upload_limit_kbps": null,
+          "download_bytes": 1073741824,
+          "upload_bytes": 268435456
+        }
+      ]
+    },
+    "set_policy_request": {
+      "method": "set_policy",
+      "params": {
+        "mac": "AA:BB:CC:DD:EE:02",
+        "policy": {
+          "type": "throttle",
+          "download_kbps": 5000,
+          "upload_kbps": 2000
+        }
+      }
+    },
+    "set_policy_response": {
+      "status": "ok",
+      "data": { "applied": true }
+    },
+    "block_device_request": {
+      "method": "set_policy",
+      "params": {
+        "mac": "AA:BB:CC:DD:EE:04",
+        "policy": { "type": "block" }
+      }
+    },
+    "get_stats_response": {
+      "status": "ok",
+      "data": {
+        "total_download_bytes": 4294967296,
+        "total_upload_bytes": 1073741824,
+        "device_count": 5
+      }
+    },
+    "ping_response": {
+      "status": "ok",
+      "data": { "pong": true }
+    },
+    "error_response": {
+      "status": "error",
+      "message": "Invalid MAC address: ZZ:ZZ:ZZ:ZZ:ZZ:ZZ"
+    }
+  }
+}
