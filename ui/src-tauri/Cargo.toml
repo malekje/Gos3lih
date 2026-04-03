@@ -3,6 +3,11 @@ name = "gos3lih-ui"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata.bundle]
+name = "Gos3lih"
+identifier = "com.gos3lih.app"
+icon = ["icons/icon.ico"]
+
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-build = { version = "2", features = [] }
