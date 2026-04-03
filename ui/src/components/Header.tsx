@@ -1,11 +1,12 @@
-import { Activity, Wifi, WifiOff } from "lucide-react";
+import { Activity, Wifi, WifiOff, AlertTriangle } from "lucide-react";
 
 interface HeaderProps {
   connected: boolean;
   deviceCount: number;
+  engineError?: string;
 }
 
-export function Header({ connected, deviceCount }: HeaderProps) {
+export function Header({ connected, deviceCount, engineError }: HeaderProps) {
   return (
     <header className="border-b border-gray-800 bg-gray-900/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -25,12 +26,17 @@ export function Header({ connected, deviceCount }: HeaderProps) {
             {connected ? (
               <>
                 <Wifi className="w-4 h-4 text-emerald-400" />
-                <span className="text-emerald-400">Engine connected</span>
+                <span className="text-emerald-400">Engine running</span>
+              </>
+            ) : engineError ? (
+              <>
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span className="text-amber-400" title={engineError}>Engine failed</span>
               </>
             ) : (
               <>
-                <WifiOff className="w-4 h-4 text-red-400" />
-                <span className="text-red-400">Engine offline</span>
+                <WifiOff className="w-4 h-4 text-yellow-400" />
+                <span className="text-yellow-400">Engine starting…</span>
               </>
             )}
           </div>

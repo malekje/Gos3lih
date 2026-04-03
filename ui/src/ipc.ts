@@ -3,7 +3,7 @@
 // No more named pipes or mock data — everything is real.
 
 import { invoke } from "@tauri-apps/api/core";
-import type { Device, Stats, PolicyPayload, UpdateInfo } from "./types";
+import type { Device, Stats, PolicyPayload, UpdateInfo, EngineStatus } from "./types";
 
 export async function getDevices(): Promise<Device[]> {
   return invoke<Device[]>("get_devices");
@@ -30,4 +30,8 @@ export async function checkUpdate(): Promise<UpdateInfo> {
 
 export async function applyUpdate(): Promise<void> {
   await invoke("apply_update");
+}
+
+export async function getEngineStatus(): Promise<EngineStatus> {
+  return invoke<EngineStatus>("get_engine_status");
 }

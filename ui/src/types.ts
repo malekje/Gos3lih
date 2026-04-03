@@ -31,3 +31,8 @@ export interface UpdateInfo {
   download_url: string;
   release_notes: string;
 }
+
+export interface EngineStatus {
+  running: boolean;
+  error: string;
+}

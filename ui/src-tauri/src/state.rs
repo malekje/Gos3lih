@@ -65,6 +65,8 @@ pub struct SharedState {
     pub subnet: parking_lot::RwLock<(Ipv4Addr, u8)>,
     shutdown: AtomicBool,
     scan_requested: AtomicBool,
+    engine_running: AtomicBool,
+    pub engine_error: parking_lot::RwLock<String>,
 }
 
 impl SharedState {
@@ -76,6 +78,8 @@ impl SharedState {
             subnet: parking_lot::RwLock::new((Ipv4Addr::new(192, 168, 1, 0), 24)),
             shutdown: AtomicBool::new(false),
             scan_requested: AtomicBool::new(true), // scan immediately on start
+            engine_running: AtomicBool::new(false),
+            engine_error: parking_lot::RwLock::new(String::new()),
         }
     }
 
@@ -93,6 +97,18 @@ impl SharedState {
 
     pub fn take_scan_request(&self) -> bool {
         self.scan_requested.swap(false, Ordering::SeqCst)
+    }
+
+    pub fn set_engine_running(&self, running: bool) {
+        self.engine_running.store(running, Ordering::SeqCst);
+    }
+
+    pub fn is_engine_running(&self) -> bool {
+        self.engine_running.load(Ordering::SeqCst)
+    }
+
+    pub fn set_engine_error(&self, err: String) {
+        *self.engine_error.write() = err;
     }
 
     pub fn upsert_device(&self, mac: MacAddr, ip: Ipv4Addr) {

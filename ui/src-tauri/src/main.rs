@@ -157,6 +157,22 @@ async fn apply_update(
     Ok(())
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct EngineStatus {
+    pub running: bool,
+    pub error: String,
+}
+
+#[tauri::command]
+async fn get_engine_status(
+    shared: tauri::State<'_, Arc<SharedState>>,
+) -> Result<EngineStatus, String> {
+    Ok(EngineStatus {
+        running: shared.is_engine_running(),
+        error: shared.engine_error.read().clone(),
+    })
+}
+
 fn parse_mac(s: &str) -> Option<[u8; 6]> {
     let parts: Vec<&str> = s.split(':').collect();
     if parts.len() != 6 {
@@ -231,6 +247,7 @@ fn main() {
             trigger_scan,
             check_update,
             apply_update,
+            get_engine_status,
         ])
         .run(tauri::generate_context!())
         .expect("error running Gos3lih");

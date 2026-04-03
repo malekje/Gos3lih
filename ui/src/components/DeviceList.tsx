@@ -162,40 +162,44 @@ function DeviceRow({ device }: { device: Device }) {
             <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Download limit</span>
               <span className="font-mono text-brand-400">
-                {dlLimit >= 1000
-                  ? (dlLimit / 1000).toFixed(1) + " Mbps"
-                  : dlLimit + " Kbps"}
+                {dlLimit} Kbps
               </span>
             </div>
             <input
               type="range"
-              min={100}
+              min={10}
               max={100000}
-              step={100}
+              step={10}
               value={dlLimit}
               onChange={(e) => setDlLimit(Number(e.target.value))}
               className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-500"
             />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-0.5">
+              <span>10 Kbps</span>
+              <span>100,000 Kbps</span>
+            </div>
           </div>
 
           <div>
             <div className="flex justify-between text-xs text-gray-400 mb-1">
               <span>Upload limit</span>
               <span className="font-mono text-emerald-400">
-                {ulLimit >= 1000
-                  ? (ulLimit / 1000).toFixed(1) + " Mbps"
-                  : ulLimit + " Kbps"}
+                {ulLimit} Kbps
               </span>
             </div>
             <input
               type="range"
-              min={100}
+              min={10}
               max={100000}
-              step={100}
+              step={10}
               value={ulLimit}
               onChange={(e) => setUlLimit(Number(e.target.value))}
               className="w-full h-1.5 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-emerald-500"
             />
+            <div className="flex justify-between text-[10px] text-gray-600 mt-0.5">
+              <span>10 Kbps</span>
+              <span>100,000 Kbps</span>
+            </div>
           </div>
 
           <button

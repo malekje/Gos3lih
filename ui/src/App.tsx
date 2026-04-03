@@ -3,8 +3,8 @@ import { ThroughputGauge } from "./components/ThroughputGauge";
 import { DeviceList } from "./components/DeviceList";
 import { Header } from "./components/Header";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { getDevices, getStats, checkUpdate } from "./ipc";
-import type { Device, Stats, UpdateInfo } from "./types";
+import { getDevices, getStats, checkUpdate, getEngineStatus } from "./ipc";
+import type { Device, Stats, UpdateInfo, EngineStatus } from "./types";
 
 const POLL_INTERVAL = 2000; // 2 seconds
 
@@ -15,7 +15,8 @@ function App() {
     total_upload_bytes: 0,
     device_count: 0,
   });
-  const [connected, setConnected] = useState(true);
+  const [connected, setConnected] = useState(false);
+  const [engineError, setEngineError] = useState("");
   const [prevStats, setPrevStats] = useState<Stats | null>(null);
   const [throughput, setThroughput] = useState({ download: 0, upload: 0 });
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
@@ -23,8 +24,10 @@ function App() {
 
   const refresh = useCallback(async () => {
     try {
-      const [devs, st] = await Promise.all([getDevices(), getStats()]);
+      const [devs, st, es] = await Promise.all([getDevices(), getStats(), getEngineStatus()]);
       setDevices(devs);
+      setConnected(es.running);
+      setEngineError(es.error);
 
       // Calculate throughput delta
       if (prevStats) {
@@ -77,7 +80,7 @@ function App() {
         />
       )}
 
-      <Header connected={connected} deviceCount={stats.device_count} />
+      <Header connected={connected} deviceCount={stats.device_count} engineError={engineError} />
 
       <main className="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full">
         {/* Throughput gauges */}

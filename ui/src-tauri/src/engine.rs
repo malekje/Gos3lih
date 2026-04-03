@@ -19,12 +19,23 @@ const WORKER_THREADS: usize = 4;
 pub async fn run_packet_engine(state: Arc<SharedState>) -> Result<()> {
     info!("Packet engine starting — opening WinDivert handle");
 
-    let handle = windivert::WinDivert::network(
+    let handle = match windivert::WinDivert::network(
         "true",
         0,
         WinDivertFlags::new(),
-    )
-    .context("Failed to open WinDivert handle (is WinDivert.dll + .sys in the same folder? Running as Admin?)")?;
+    ) {
+        Ok(h) => {
+            state.set_engine_running(true);
+            info!("WinDivert handle opened successfully");
+            h
+        }
+        Err(e) => {
+            let msg = format!("WinDivert failed: {e} (Run as Admin? DLLs in same folder?)");
+            tracing::error!("{msg}");
+            state.set_engine_error(msg);
+            return Err(e).context("Failed to open WinDivert handle");
+        }
+    };
 
     let handle = Arc::new(handle);
     let buckets = Arc::new(BucketRegistry::new());
@@ -64,12 +75,14 @@ fn worker_loop(
 ) {
     info!("Worker {id} started");
 
+    let mut buf = vec![0u8; PACKET_BUF_SIZE];
+
     loop {
         if state.is_shutdown() {
             break;
         }
 
-        let recv_result = handle.recv(None);
+        let recv_result = handle.recv(Some(&mut buf));
 
         let packet = match recv_result {
             Ok(p) => p,
