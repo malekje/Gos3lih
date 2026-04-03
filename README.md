@@ -20,18 +20,20 @@ Gos3lih intercepts all network traffic on your machine using WinDivert, discover
 | File | Purpose |
 |------|---------|
 | `Gos3lih.zip` | Download this — contains everything you need |
-| `gos3lih-service.exe` | Main app (inside the zip) |
-| `WinDivert.dll` | Packet driver (inside the zip) |
-| `WinDivert64.sys` | Kernel driver (inside the zip) |
+| `gos3lih-service.exe` | Backend engine — run this as Administrator |
+| `gos3lih-ui.exe` | Dashboard UI — auto-launched by the service |
+| `WinDivert.dll` | Packet driver (must be in same folder) |
+| `WinDivert64.sys` | Kernel driver (must be in same folder) |
 
 ### Quick Start
 
 1. **Download** [`Gos3lih.zip`](https://github.com/malekje/Gos3lih/releases/latest) from the latest release
-2. **Extract** the zip — all files must be in the **same folder** (e.g. `C:\Gos3lih\`)
-3. **Right-click** `gos3lih-service.exe` → **Run as Administrator**
-4. The dashboard opens — discover every device on your network and throttle their bandwidth!
+2. **Extract** all files into the **same folder** (e.g. `C:\Gos3lih\`)
+3. Install **[Npcap](https://npcap.com/#download)** — check **"WinPcap API-compatible Mode"** during install
+4. **Right-click** `gos3lih-service.exe` → **Run as Administrator**
+5. The **dashboard UI opens automatically** — discover every device on your network and throttle their bandwidth!
 
-> ⚠️ `WinDivert.dll` and `WinDivert64.sys` must stay in the same folder as the exe or it will fail to start.
+> ⚠️ All 4 files must stay in the same folder or the app will fail to start.
 
 > **Important:** Administrator privileges are required for packet interception.
 

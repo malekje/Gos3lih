@@ -181,6 +181,22 @@ fn run_standalone() -> Result<()> {
 
         info!("All subsystems started. Press Ctrl+C to stop.");
 
+        // Launch the dashboard UI if it's next to this exe.
+        #[cfg(windows)]
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(dir) = exe_path.parent() {
+                let ui_exe = dir.join("gos3lih-ui.exe");
+                if ui_exe.exists() {
+                    match std::process::Command::new(&ui_exe).spawn() {
+                        Ok(_)  => info!("Dashboard UI launched"),
+                        Err(e) => tracing::warn!("Could not launch UI: {e}"),
+                    }
+                } else {
+                    tracing::warn!("gos3lih-ui.exe not found next to service — UI will not open");
+                }
+            }
+        }
+
         // Graceful shutdown on Ctrl+C
         tokio::signal::ctrl_c().await.ok();
         info!("Ctrl+C received, shutting down…");

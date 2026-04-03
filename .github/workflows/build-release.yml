@@ -23,6 +23,11 @@ jobs:
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
       - name: Cache Cargo registry & target
         uses: actions/cache@v4
         with:
@@ -49,11 +54,22 @@ jobs:
       - name: Build release binary
         run: cargo build --release
 
+      - name: Build Tauri UI
+        shell: pwsh
+        env:
+          WINDIVERT_PATH: ${{ github.workspace }}\vendor\WinDivert-2.2.2-A
+          LIB: ${{ github.workspace }}\vendor\npcap-sdk\Lib\x64;${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64
+        run: |
+          cd ui
+          npm install
+          npx tauri build --bundles none
+
       - name: Prepare release artifacts
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path release-artifacts | Out-Null
           Copy-Item target/release/gos3lih-service.exe release-artifacts/
+          Copy-Item ui/src-tauri/target/release/gos3lih-ui.exe release-artifacts/
           Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert.dll release-artifacts/
           Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys release-artifacts/
           Compress-Archive -Path release-artifacts/* -DestinationPath Gos3lih.zip
@@ -80,11 +96,12 @@ jobs:
 
             ### How to install
             1. Download **`Gos3lih.zip`**
-            2. **Extract** the zip — put all 3 files in the same folder (e.g. `C:\Gos3lih\`)
+            2. **Extract** all files into the same folder (e.g. `C:\Gos3lih\`)
             3. Right-click **`gos3lih-service.exe`** → **Run as Administrator**
-            4. The dashboard opens automatically — discover devices and throttle their bandwidth!
+            4. The dashboard UI opens automatically!
 
-            > ⚠️ All 3 files (`gos3lih-service.exe`, `WinDivert.dll`, `WinDivert64.sys`) **must stay in the same folder**.
+            > ⚠️ All 4 files must stay in the same folder: `gos3lih-service.exe`, `gos3lih-ui.exe`, `WinDivert.dll`, `WinDivert64.sys`
+            > 📦 Also install [Npcap](https://npcap.com/#download) (check "WinPcap API-compatible Mode") for device discovery to work.
             > The application auto-updates — future releases will be applied automatically.
           files: |
             Gos3lih.zip
