@@ -62,7 +62,7 @@ jobs:
         run: |
           cd ui
           npm install
-          npx tauri build --bundles none
+          npx tauri build
 
       - name: Prepare release artifacts
         shell: pwsh
