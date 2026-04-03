@@ -52,8 +52,11 @@ jobs:
       - name: Prepare release artifacts
         shell: pwsh
         run: |
-          mkdir release-artifacts
+          New-Item -ItemType Directory -Path release-artifacts | Out-Null
           Copy-Item target/release/gos3lih-service.exe release-artifacts/
+          Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert.dll release-artifacts/
+          Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys release-artifacts/
+          Compress-Archive -Path release-artifacts/* -DestinationPath Gos3lih.zip
 
       - name: Extract version from Cargo.toml
         id: version
@@ -76,14 +79,15 @@ jobs:
             **Build:** #${{ github.run_number }}
 
             ### How to install
-            1. Download `gos3lih-service.exe`
-            2. Right-click → **Run as Administrator**
-            3. The dashboard opens automatically — discover devices and throttle bandwidth!
+            1. Download **`Gos3lih.zip`**
+            2. **Extract** the zip — put all 3 files in the same folder (e.g. `C:\Gos3lih\`)
+            3. Right-click **`gos3lih-service.exe`** → **Run as Administrator**
+            4. The dashboard opens automatically — discover devices and throttle their bandwidth!
 
-            > WinDivert drivers are bundled inside the exe and extracted automatically.
+            > ⚠️ All 3 files (`gos3lih-service.exe`, `WinDivert.dll`, `WinDivert64.sys`) **must stay in the same folder**.
             > The application auto-updates — future releases will be applied automatically.
           files: |
-            release-artifacts/gos3lih-service.exe
+            Gos3lih.zip
           draft: false
           prerelease: false
         env:

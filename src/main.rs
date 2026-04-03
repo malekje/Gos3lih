@@ -18,41 +18,11 @@ use crate::state::SharedState;
 use crate::updater::UpdateState;
 
 // ---------------------------------------------------------------------------
-// Embedded WinDivert binaries — extracted next to the .exe at startup
-// ---------------------------------------------------------------------------
-
-const WINDIVERT_DLL: &[u8] = include_bytes!("../vendor/WinDivert-2.2.2-A/x64/WinDivert.dll");
-const WINDIVERT_SYS: &[u8] = include_bytes!("../vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys");
-
-/// Write the embedded WinDivert files next to the running executable
-/// (only if they are missing or have a different size).
-fn extract_windivert() {
-    let exe_dir = std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_else(|| std::path::PathBuf::from("."));
-
-    for (name, data) in [("WinDivert.dll", WINDIVERT_DLL), ("WinDivert64.sys", WINDIVERT_SYS)] {
-        let dest = exe_dir.join(name);
-        let needs_write = match std::fs::metadata(&dest) {
-            Ok(meta) => meta.len() != data.len() as u64,
-            Err(_) => true,
-        };
-        if needs_write {
-            if let Err(e) = std::fs::write(&dest, data) {
-                eprintln!("Warning: could not extract {name}: {e}");
-            }
-        }
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Windows Service boilerplate
 // ---------------------------------------------------------------------------
 
 #[cfg(windows)]
 fn main() -> Result<()> {
-    extract_windivert();
     // When launched by the SCM, run as a service.
     // When launched from a console (dev mode), run directly.
     if let Err(_) = windows_service_main() {
@@ -63,7 +33,6 @@ fn main() -> Result<()> {
 
 #[cfg(not(windows))]
 fn main() -> Result<()> {
-    extract_windivert();
     run_standalone()
 }
 

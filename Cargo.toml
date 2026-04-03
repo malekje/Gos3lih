@@ -62,6 +62,9 @@ uuid = { version = "1", features = ["v4"] }
 # HTTP client for auto-updater
 reqwest = { version = "0.12", features = ["json"] }
 
+# Zip extraction for update bundles
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 [build-dependencies]
 winres = "0.1"
 

@@ -162,11 +162,11 @@ async fn check_for_update(client: &reqwest::Client) -> Result<Option<UpdateInfo>
     let latest_tag = release.tag_name.trim_start_matches('v').to_string();
 
     if version_is_newer(&latest_tag, CURRENT_VERSION) {
-        // Find the .exe asset.
+        // Find the zip bundle asset.
         let asset = release
             .assets
             .iter()
-            .find(|a| a.name.ends_with(".exe") && a.name.contains("gos3lih"));
+            .find(|a| a.name == "Gos3lih.zip");
 
         let download_url = asset
             .map(|a| a.browser_download_url.clone())
@@ -200,7 +200,7 @@ fn version_is_newer(latest: &str, current: &str) -> bool {
 // Download & self-replace
 // ---------------------------------------------------------------------------
 
-/// Download the new binary and perform a self-replace + restart.
+/// Download the zip bundle and perform a self-replace + restart.
 pub async fn apply_update(download_url: &str) -> Result<()> {
     if download_url.is_empty() {
         anyhow::bail!("No download URL available");
@@ -225,34 +225,36 @@ pub async fn apply_update(download_url: &str) -> Result<()> {
     let update_exe = parent.join("gos3lih-service.update.exe");
     let backup_exe = parent.join("gos3lih-service.old.exe");
 
-    // Write the downloaded binary (WinDivert is embedded, no extra files needed).
-    tokio::fs::write(&update_exe, &bytes).await?;
+    // Extract the zip — update exe + DLLs side by side.
+    let cursor = std::io::Cursor::new(&bytes[..]);
+    let mut archive = zip::ZipArchive::new(cursor).context("Failed to open update zip")?;
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i)?;
+        let name = file.name().to_string();
+        let dest = if name.contains("gos3lih-service") {
+            update_exe.clone()
+        } else {
+            parent.join(std::path::Path::new(&name).file_name().unwrap_or_default())
+        };
+        let mut out = std::fs::File::create(&dest)?;
+        std::io::copy(&mut file, &mut out)?;
+    }
 
-    info!("Update downloaded ({} bytes), scheduling restart…", bytes.len());
+    info!("Update extracted ({} bytes), scheduling restart…", bytes.len());
 
-    // Create a small batch script that:
-    //   1. Waits for this process to exit
-    //   2. Renames current → .old
-    //   3. Renames .update → current
-    //   4. Restarts the service
-    //   5. Cleans up .old and itself
     let bat_path = parent.join("_gos3lih_update.bat");
     let bat_content = format!(
         r#"@echo off
-:: Wait for the old process to exit
 :wait
 tasklist /FI "PID eq {pid}" 2>NUL | find "{pid}" >NUL
 if not errorlevel 1 (
     timeout /t 1 /nobreak >NUL
     goto wait
 )
-:: Swap binaries
 if exist "{backup}" del /f "{backup}"
 move /y "{current}" "{backup}"
 move /y "{update}" "{current}"
-:: Restart
 start "" "{current}"
-:: Cleanup
 del /f "{backup}" 2>NUL
 del /f "%~f0"
 "#,
@@ -264,14 +266,11 @@ del /f "%~f0"
 
     tokio::fs::write(&bat_path, bat_content).await?;
 
-    // Launch the batch script detached.
     std::process::Command::new("cmd.exe")
         .args(["/C", "start", "/min", "", &bat_path.to_string_lossy()])
         .spawn()
         .context("Failed to launch update script")?;
 
     info!("Update script launched — exiting for restart");
-
-    // Exit so the batch script can replace us.
     std::process::exit(0);
 }

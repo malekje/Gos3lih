@@ -19,13 +19,19 @@ Gos3lih intercepts all network traffic on your machine using WinDivert, discover
 
 | File | Purpose |
 |------|---------|
-| `gos3lih-service.exe` | **Single-file app** — everything is bundled inside |
+| `Gos3lih.zip` | Download this — contains everything you need |
+| `gos3lih-service.exe` | Main app (inside the zip) |
+| `WinDivert.dll` | Packet driver (inside the zip) |
+| `WinDivert64.sys` | Kernel driver (inside the zip) |
 
 ### Quick Start
 
-1. **Download** `gos3lih-service.exe` from the [latest release](https://github.com/malekje/Gos3lih/releases/latest)
-2. **Right-click → Run as Administrator**
-3. The dashboard UI will launch automatically — discover devices and limit their bandwidth!
+1. **Download** [`Gos3lih.zip`](https://github.com/malekje/Gos3lih/releases/latest) from the latest release
+2. **Extract** the zip — all files must be in the **same folder** (e.g. `C:\Gos3lih\`)
+3. **Right-click** `gos3lih-service.exe` → **Run as Administrator**
+4. The dashboard opens — discover every device on your network and throttle their bandwidth!
+
+> ⚠️ `WinDivert.dll` and `WinDivert64.sys` must stay in the same folder as the exe or it will fail to start.
 
 > **Important:** Administrator privileges are required for packet interception.
 
