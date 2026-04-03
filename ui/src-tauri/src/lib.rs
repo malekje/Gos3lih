@@ -1,15 +1,12 @@
 //! Tauri backend — thin bridge that forwards IPC commands to the
 //! high-privilege Gos3lih service via Named Pipe.
 
-use serde::{Deserialize, Serialize};
-use tauri::command;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tracing::warn;
 
-const PIPE_NAME: &str = r"\\.\.pipe\gos3lih-ipc";
+const PIPE_NAME: &str = r"\\.\pipe\gos3lih-ipc";
 
 /// Forward a JSON-RPC–style message to the backend pipe and return the response.
-#[command]
+#[tauri::command]
 pub async fn ipc_forward(method: String, params: Option<serde_json::Value>) -> Result<serde_json::Value, String> {
     let request = match params {
         Some(p) => serde_json::json!({ "method": method, "params": p }),
