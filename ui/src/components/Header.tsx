@@ -12,7 +12,7 @@ export function Header({ connected, deviceCount }: HeaderProps) {
         <div className="flex items-center gap-3">
           <Activity className="w-7 h-7 text-brand-500" />
           <h1 className="text-xl font-bold tracking-tight">
-            NetFlow<span className="text-brand-400">-Pro</span>
+            Gos<span className="text-brand-400">3lih</span>
           </h1>
         </div>
 

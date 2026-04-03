@@ -53,9 +53,7 @@ jobs:
         shell: pwsh
         run: |
           mkdir release-artifacts
-          Copy-Item target/release/netflow-pro-service.exe release-artifacts/
-          Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert.dll release-artifacts/
-          Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys release-artifacts/
+          Copy-Item target/release/gos3lih-service.exe release-artifacts/
 
       - name: Extract version from Cargo.toml
         id: version
@@ -69,24 +67,23 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}
-          name: "NetFlow-Pro ${{ steps.version.outputs.tag }}"
+          name: "Gos3lih ${{ steps.version.outputs.tag }}"
           body: |
-            ## NetFlow-Pro Auto-Build
+            ## Gos3lih Auto-Build
 
             **Commit:** ${{ github.sha }}
             **Branch:** ${{ github.ref_name }}
             **Build:** #${{ github.run_number }}
 
             ### How to install
-            1. Download `netflow-pro-service.exe`, `WinDivert.dll`, and `WinDivert64.sys`
-            2. Place all three files in the same folder
-            3. Run `netflow-pro-service.exe` as Administrator
+            1. Download `gos3lih-service.exe`
+            2. Right-click → **Run as Administrator**
+            3. The dashboard opens automatically — discover devices and throttle bandwidth!
 
+            > WinDivert drivers are bundled inside the exe and extracted automatically.
             > The application auto-updates — future releases will be applied automatically.
           files: |
-            release-artifacts/netflow-pro-service.exe
-            release-artifacts/WinDivert.dll
-            release-artifacts/WinDivert64.sys
+            release-artifacts/gos3lih-service.exe
           draft: false
           prerelease: false
         env:

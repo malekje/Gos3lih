@@ -1,13 +1,13 @@
 [package]
-name = "netflow-pro"
+name = "gos3lih"
 version = "0.1.0"
 edition = "2021"
-authors = ["NetFlow-Pro Team"]
+authors = ["Gos3lih Team"]
 description = "High-performance real-time network monitor and per-device bandwidth throttler for Windows"
 license = "MIT"
 
 [[bin]]
-name = "netflow-pro-service"
+name = "gos3lih-service"
 path = "src/main.rs"
 
 [dependencies]

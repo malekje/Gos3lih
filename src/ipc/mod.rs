@@ -138,7 +138,7 @@ pub struct StatsDto {
 // ---------------------------------------------------------------------------
 
 /// Name of the Named Pipe (Windows) or Unix socket (dev fallback).
-const PIPE_NAME: &str = r"\\.\pipe\netflow-pro-ipc";
+const PIPE_NAME: &str = r"\\.\pipe\gos3lih-ipc";
 
 pub async fn run_ipc_server(state: Arc<SharedState>, update_state: Arc<UpdateState>) -> Result<()> {
     info!("IPC server starting on {PIPE_NAME}");

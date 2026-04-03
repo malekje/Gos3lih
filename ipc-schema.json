@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "NetFlow-Pro IPC Protocol",
+  "title": "Gos3lih IPC Protocol",
   "description": "JSON-over-Named-Pipe protocol between the Tauri UI and the Rust backend service. Messages are newline-delimited JSON.",
 
   "definitions": {

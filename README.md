@@ -5,11 +5,11 @@
   <img src="https://img.shields.io/github/v/release/malekje/Gos3lih?style=for-the-badge&label=Latest&color=green" />
 </p>
 
-# NetFlow-Pro
+# Gos3lih
 
 **Real-time network monitor and per-device bandwidth throttler for Windows.**
 
-NetFlow-Pro intercepts all network traffic on your machine using WinDivert, discovers every device on your LAN via ARP scanning, and lets you **block** or **throttle** (limit download/upload speed) any device — all from a clean dashboard UI.
+Gos3lih intercepts all network traffic on your machine using WinDivert, discovers every device on your LAN via ARP scanning, and lets you **block** or **throttle** (limit download/upload speed) any device — all from a clean dashboard UI.
 
 ---
 
@@ -19,16 +19,13 @@ NetFlow-Pro intercepts all network traffic on your machine using WinDivert, disc
 
 | File | Purpose |
 |------|---------|
-| `netflow-pro-service.exe` | The main application (backend engine) |
-| `WinDivert.dll` | Packet interception driver runtime |
-| `WinDivert64.sys` | Kernel-mode driver (auto-loaded) |
+| `gos3lih-service.exe` | **Single-file app** — everything is bundled inside |
 
 ### Quick Start
 
-1. **Download** all three files from the [latest release](https://github.com/malekje/Gos3lih/releases/latest)
-2. **Place** them in the same folder (e.g. `C:\NetFlow-Pro\`)
-3. **Right-click → Run as Administrator** on `netflow-pro-service.exe`
-4. The dashboard UI will launch automatically
+1. **Download** `gos3lih-service.exe` from the [latest release](https://github.com/malekje/Gos3lih/releases/latest)
+2. **Right-click → Run as Administrator**
+3. The dashboard UI will launch automatically — discover devices and limit their bandwidth!
 
 > **Important:** Administrator privileges are required for packet interception.
 
@@ -36,7 +33,7 @@ NetFlow-Pro intercepts all network traffic on your machine using WinDivert, disc
 
 ## Auto-Update
 
-NetFlow-Pro **updates itself automatically**. When a new version is pushed to `main`:
+Gos3lih **updates itself automatically**. When a new version is pushed to `main`:
 
 1. GitHub Actions builds a fresh release binary
 2. Your running app detects the new version within 5 minutes
@@ -70,7 +67,7 @@ No manual downloads needed after the first install.
 └──────────────────┬──────────────────────────────┘
                    │  Named Pipe (JSON)
 ┌──────────────────┴──────────────────────────────┐
-│            NetFlow-Pro Service (Rust)            │
+│             Gos3lih Service (Rust)               │
 │                                                  │
 │  ┌──────────┐ ┌───────────┐ ┌────────────────┐  │
 │  │  Packet   │ │ Discovery │ │  Auto-Updater  │  │

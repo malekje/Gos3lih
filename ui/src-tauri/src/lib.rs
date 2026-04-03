@@ -1,12 +1,12 @@
 //! Tauri backend — thin bridge that forwards IPC commands to the
-//! high-privilege NetFlow-Pro service via Named Pipe.
+//! high-privilege Gos3lih service via Named Pipe.
 
 use serde::{Deserialize, Serialize};
 use tauri::command;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tracing::warn;
 
-const PIPE_NAME: &str = r"\\.\pipe\netflow-pro-ipc";
+const PIPE_NAME: &str = r"\\.\.pipe\gos3lih-ipc";
 
 /// Forward a JSON-RPC–style message to the backend pipe and return the response.
 #[command]
@@ -64,5 +64,5 @@ pub fn run() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![ipc_forward])
         .run(tauri::generate_context!())
-        .expect("error running NetFlow-Pro UI");
+        .expect("error running Gos3lih UI");
 }

@@ -1,5 +1,5 @@
 [package]
-name = "netflow-pro-ui"
+name = "gos3lih-ui"
 version = "0.1.0"
 edition = "2021"
 
@@ -17,5 +17,5 @@ tracing = "0.1"
 tauri-build = { version = "2", features = [] }
 
 [lib]
-name = "netflow_pro_ui_lib"
+name = "gos3lih_ui_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]

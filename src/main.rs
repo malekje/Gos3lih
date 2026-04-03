@@ -1,4 +1,4 @@
-//! NetFlow-Pro — Real-time network monitor and per-device bandwidth throttler.
+//! Gos3lih — Real-time network monitor and per-device bandwidth throttler.
 //!
 //! Runs as a high-priority Windows Service. Intercepts all traffic via WinDivert,
 //! applies token-bucket throttling per device, and exposes an IPC control channel.
@@ -18,11 +18,41 @@ use crate::state::SharedState;
 use crate::updater::UpdateState;
 
 // ---------------------------------------------------------------------------
+// Embedded WinDivert binaries — extracted next to the .exe at startup
+// ---------------------------------------------------------------------------
+
+const WINDIVERT_DLL: &[u8] = include_bytes!("../vendor/WinDivert-2.2.2-A/x64/WinDivert.dll");
+const WINDIVERT_SYS: &[u8] = include_bytes!("../vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys");
+
+/// Write the embedded WinDivert files next to the running executable
+/// (only if they are missing or have a different size).
+fn extract_windivert() {
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+        .unwrap_or_else(|| std::path::PathBuf::from("."));
+
+    for (name, data) in [("WinDivert.dll", WINDIVERT_DLL), ("WinDivert64.sys", WINDIVERT_SYS)] {
+        let dest = exe_dir.join(name);
+        let needs_write = match std::fs::metadata(&dest) {
+            Ok(meta) => meta.len() != data.len() as u64,
+            Err(_) => true,
+        };
+        if needs_write {
+            if let Err(e) = std::fs::write(&dest, data) {
+                eprintln!("Warning: could not extract {name}: {e}");
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Windows Service boilerplate
 // ---------------------------------------------------------------------------
 
 #[cfg(windows)]
 fn main() -> Result<()> {
+    extract_windivert();
     // When launched by the SCM, run as a service.
     // When launched from a console (dev mode), run directly.
     if let Err(_) = windows_service_main() {
@@ -33,6 +63,7 @@ fn main() -> Result<()> {
 
 #[cfg(not(windows))]
 fn main() -> Result<()> {
+    extract_windivert();
     run_standalone()
 }
 
@@ -40,7 +71,7 @@ fn main() -> Result<()> {
 #[cfg(windows)]
 fn windows_service_main() -> Result<()> {
     use windows_service::service_dispatcher;
-    service_dispatcher::start("NetFlowPro", ffi_service_main)?;
+    service_dispatcher::start("Gos3lih", ffi_service_main)?;
     Ok(())
 }
 
@@ -74,7 +105,7 @@ fn run_service(_args: Vec<std::ffi::OsString>) -> Result<()> {
         }
     };
 
-    let status_handle = service_control_handler::register("NetFlowPro", event_handler)?;
+    let status_handle = service_control_handler::register("Gos3lih", event_handler)?;
 
     status_handle.set_service_status(ServiceStatus {
         service_type: ServiceType::OWN_PROCESS,
@@ -90,7 +121,7 @@ fn run_service(_args: Vec<std::ffi::OsString>) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(4)
-        .thread_name("netflow-worker")
+        .thread_name("gos3lih-worker")
         .build()?;
 
     rt.block_on(async {
@@ -136,12 +167,12 @@ fn run_standalone() -> Result<()> {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "netflow_pro=debug,info".into()),
+                .unwrap_or_else(|_| "gos3lih=debug,info".into()),
         )
         .with_target(true)
         .init();
 
-    info!("NetFlow-Pro starting in standalone (console) mode");
+    info!("Gos3lih starting in standalone (console) mode");
 
     // Raise process priority
     #[cfg(windows)]
@@ -157,7 +188,7 @@ fn run_standalone() -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .worker_threads(4)
-        .thread_name("netflow-worker")
+        .thread_name("gos3lih-worker")
         .build()?;
 
     rt.block_on(async {
@@ -185,7 +216,7 @@ fn run_standalone() -> Result<()> {
         state.request_shutdown();
 
         let _ = tokio::join!(engine_handle, discovery_handle, ipc_handle, updater_handle);
-        info!("NetFlow-Pro stopped.");
+        info!("Gos3lih stopped.");
     });
 
     Ok(())

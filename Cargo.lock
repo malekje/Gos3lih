@@ -444,6 +444,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
+name = "gos3lih"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "byteorder",
+ "chrono",
+ "crossbeam",
+ "dashmap",
+ "interprocess",
+ "oui",
+ "parking_lot",
+ "pnet",
+ "pnet_datalink",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "windivert",
+ "windows-service",
+ "windows-sys 0.59.0",
+ "winres",
+]
+
+[[package]]
 name = "h2"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,34 +938,6 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "tempfile",
-]
-
-[[package]]
-name = "netflow-pro"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "byteorder",
- "chrono",
- "crossbeam",
- "dashmap",
- "interprocess",
- "oui",
- "parking_lot",
- "pnet",
- "pnet_datalink",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "windivert",
- "windows-service",
- "windows-sys 0.59.0",
- "winres",
 ]
 
 [[package]]

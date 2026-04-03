@@ -9,7 +9,6 @@
 //! script that waits for this process to exit, replaces the old exe, and
 //! re-launches.
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -24,7 +23,7 @@ use crate::state::SharedState;
 // Configuration — change these to match your GitHub repository
 // ---------------------------------------------------------------------------
 
-/// GitHub owner/repo (e.g. "myuser/netflow-pro").
+/// GitHub owner/repo (e.g. "myuser/gos3lih").
 /// The CI workflow publishes releases here.
 const GITHUB_REPO: &str = "malekje/Gos3lih";
 
@@ -102,7 +101,7 @@ pub async fn run_update_checker(
     );
 
     let client = reqwest::Client::builder()
-        .user_agent(format!("NetFlow-Pro/{CURRENT_VERSION}"))
+        .user_agent(format!("Gos3lih/{CURRENT_VERSION}"))
         .timeout(Duration::from_secs(30))
         .build()?;
 
@@ -167,7 +166,7 @@ async fn check_for_update(client: &reqwest::Client) -> Result<Option<UpdateInfo>
         let asset = release
             .assets
             .iter()
-            .find(|a| a.name.ends_with(".exe") && a.name.contains("netflow-pro"));
+            .find(|a| a.name.ends_with(".exe") && a.name.contains("gos3lih"));
 
         let download_url = asset
             .map(|a| a.browser_download_url.clone())
@@ -208,7 +207,7 @@ pub async fn apply_update(download_url: &str) -> Result<()> {
     }
 
     let client = reqwest::Client::builder()
-        .user_agent(format!("NetFlow-Pro/{CURRENT_VERSION}"))
+        .user_agent(format!("Gos3lih/{CURRENT_VERSION}"))
         .timeout(Duration::from_secs(300))
         .build()?;
 
@@ -223,10 +222,10 @@ pub async fn apply_update(download_url: &str) -> Result<()> {
 
     let current_exe = std::env::current_exe()?;
     let parent = current_exe.parent().unwrap_or_else(|| std::path::Path::new("."));
-    let update_exe = parent.join("netflow-pro-service.update.exe");
-    let backup_exe = parent.join("netflow-pro-service.old.exe");
+    let update_exe = parent.join("gos3lih-service.update.exe");
+    let backup_exe = parent.join("gos3lih-service.old.exe");
 
-    // Write the downloaded binary.
+    // Write the downloaded binary (WinDivert is embedded, no extra files needed).
     tokio::fs::write(&update_exe, &bytes).await?;
 
     info!("Update downloaded ({} bytes), scheduling restart…", bytes.len());
@@ -237,7 +236,7 @@ pub async fn apply_update(download_url: &str) -> Result<()> {
     //   3. Renames .update → current
     //   4. Restarts the service
     //   5. Cleans up .old and itself
-    let bat_path = parent.join("_netflow_update.bat");
+    let bat_path = parent.join("_gos3lih_update.bat");
     let bat_content = format!(
         r#"@echo off
 :: Wait for the old process to exit
