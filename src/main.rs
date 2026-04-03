@@ -132,8 +132,10 @@ fn run_service(_args: Vec<std::ffi::OsString>) -> Result<()> {
 
 /// Standalone console mode — for development and testing.
 fn run_standalone() -> Result<()> {
-    // Initialise structured logging
+    // Initialise structured logging — disable ANSI colors so Windows CMD
+    // doesn't show raw escape sequences like ←[32m.
     tracing_subscriber::fmt()
+        .with_ansi(false)
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| "gos3lih=debug,info".into()),
