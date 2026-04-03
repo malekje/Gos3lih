@@ -187,7 +187,9 @@ async fn check_for_update(client: &reqwest::Client) -> Result<Option<UpdateInfo>
 /// Simple semver comparison: "0.2.0" > "0.1.0".
 /// Strips any pre-release/build suffix (e.g. "0.1.0-build.4" → "0.1.0").
 fn version_is_newer(latest: &str, current: &str) -> bool {
-    let clean = |v: &str| v.split('-').next().unwrap_or(v);
+    fn clean(v: &str) -> &str {
+        v.split('-').next().unwrap_or(v)
+    }
     let parse = |v: &str| -> Vec<u64> {
         v.split('.')
             .filter_map(|s| s.parse::<u64>().ok())
