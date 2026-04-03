@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { ThroughputGauge } from "./components/ThroughputGauge";
 import { DeviceList } from "./components/DeviceList";
 import { Header } from "./components/Header";
-import { getDevices, getStats } from "./ipc";
-import type { Device, Stats } from "./types";
+import { UpdateBanner } from "./components/UpdateBanner";
+import { getDevices, getStats, checkUpdate } from "./ipc";
+import type { Device, Stats, UpdateInfo } from "./types";
 
 const POLL_INTERVAL = 2000; // 2 seconds
 
@@ -17,6 +18,8 @@ function App() {
   const [connected, setConnected] = useState(true);
   const [prevStats, setPrevStats] = useState<Stats | null>(null);
   const [throughput, setThroughput] = useState({ download: 0, upload: 0 });
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [updateDismissed, setUpdateDismissed] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -46,8 +49,34 @@ function App() {
     return () => clearInterval(id);
   }, [refresh]);
 
+  // Check for updates every 60 seconds
+  useEffect(() => {
+    const check = async () => {
+      try {
+        const info = await checkUpdate();
+        if (info.available) {
+          setUpdateInfo(info);
+          setUpdateDismissed(false); // show banner again on new version
+        }
+      } catch {
+        // silently ignore update check failures
+      }
+    };
+    check();
+    const id = setInterval(check, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-950 flex flex-col">
+      {/* Update banner — shown when a new version is detected */}
+      {updateInfo?.available && !updateDismissed && (
+        <UpdateBanner
+          update={updateInfo}
+          onDismiss={() => setUpdateDismissed(true)}
+        />
+      )}
+
       <Header connected={connected} deviceCount={stats.device_count} />
 
       <main className="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full">

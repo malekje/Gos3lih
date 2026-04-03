@@ -7,16 +7,16 @@
 //! Request  → `IpcRequest`  (JSON + '\n')
 //! Response → `IpcResponse` (JSON + '\n')
 
-use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::state::{DeviceInfo, DevicePolicy, MacAddr, SharedState};
+use crate::updater::UpdateState;
 
 // ---------------------------------------------------------------------------
 // IPC JSON Schema
@@ -48,6 +48,14 @@ pub enum IpcRequest {
     /// Ping / health check.
     #[serde(rename = "ping")]
     Ping,
+
+    /// Check if an update is available.
+    #[serde(rename = "check_update")]
+    CheckUpdate,
+
+    /// Download and apply the pending update (triggers restart).
+    #[serde(rename = "apply_update")]
+    ApplyUpdate,
 }
 
 /// Simplified policy payload from the UI.
@@ -132,7 +140,7 @@ pub struct StatsDto {
 /// Name of the Named Pipe (Windows) or Unix socket (dev fallback).
 const PIPE_NAME: &str = r"\\.\pipe\netflow-pro-ipc";
 
-pub async fn run_ipc_server(state: Arc<SharedState>) -> Result<()> {
+pub async fn run_ipc_server(state: Arc<SharedState>, update_state: Arc<UpdateState>) -> Result<()> {
     info!("IPC server starting on {PIPE_NAME}");
 
     loop {
@@ -140,8 +148,7 @@ pub async fn run_ipc_server(state: Arc<SharedState>) -> Result<()> {
             break;
         }
 
-        // Use interprocess crate for named pipe server.
-        match accept_client(&state).await {
+        match accept_client(&state, &update_state).await {
             Ok(()) => {}
             Err(e) => {
                 warn!("IPC client error: {e:#}");
@@ -154,7 +161,7 @@ pub async fn run_ipc_server(state: Arc<SharedState>) -> Result<()> {
 }
 
 /// Accept and handle a single IPC client connection.
-async fn accept_client(state: &Arc<SharedState>) -> Result<()> {
+async fn accept_client(state: &Arc<SharedState>, update_state: &Arc<UpdateState>) -> Result<()> {
     use interprocess::local_socket::{
         tokio::prelude::*,
         GenericNamespaced, ListenerOptions,
@@ -186,8 +193,9 @@ async fn accept_client(state: &Arc<SharedState>) -> Result<()> {
 
         info!("IPC: client connected");
         let state = Arc::clone(state);
+        let us = Arc::clone(update_state);
         tokio::spawn(async move {
-            if let Err(e) = handle_client(stream, &state).await {
+            if let Err(e) = handle_client(stream, &state, &us).await {
                 warn!("IPC client session error: {e:#}");
             }
         });
@@ -198,6 +206,7 @@ async fn accept_client(state: &Arc<SharedState>) -> Result<()> {
 async fn handle_client(
     stream: impl tokio::io::AsyncRead + tokio::io::AsyncWrite + Unpin,
     state: &SharedState,
+    update_state: &UpdateState,
 ) -> Result<()> {
     let (reader, mut writer) = tokio::io::split(stream);
     let mut lines = BufReader::new(reader).lines();
@@ -211,7 +220,7 @@ async fn handle_client(
         debug!("IPC recv: {line}");
 
         let response = match serde_json::from_str::<IpcRequest>(&line) {
-            Ok(req) => process_request(req, state),
+            Ok(req) => process_request(req, state, update_state).await,
             Err(e) => IpcResponse::Error {
                 message: format!("Invalid JSON: {e}"),
             },
@@ -228,7 +237,7 @@ async fn handle_client(
 }
 
 /// Process a single IPC request.
-fn process_request(req: IpcRequest, state: &SharedState) -> IpcResponse {
+async fn process_request(req: IpcRequest, state: &SharedState, update_state: &UpdateState) -> IpcResponse {
     match req {
         IpcRequest::GetDevices => {
             let devices: Vec<DeviceDto> = state
@@ -289,6 +298,32 @@ fn process_request(req: IpcRequest, state: &SharedState) -> IpcResponse {
         IpcRequest::Ping => IpcResponse::Ok {
             data: serde_json::json!({"pong": true}),
         },
+
+        IpcRequest::CheckUpdate => {
+            let info = update_state.info.read().clone();
+            IpcResponse::Ok {
+                data: serde_json::to_value(info).unwrap_or_default(),
+            }
+        }
+
+        IpcRequest::ApplyUpdate => {
+            let info = update_state.info.read().clone();
+            if !info.available || info.download_url.is_empty() {
+                return IpcResponse::Error {
+                    message: "No update available or no download URL".into(),
+                };
+            }
+            // Spawn the download+replace in the background — it will exit the process.
+            let url = info.download_url.clone();
+            tokio::spawn(async move {
+                if let Err(e) = crate::updater::apply_update(&url).await {
+                    tracing::error!("Failed to apply update: {e:#}");
+                }
+            });
+            IpcResponse::Ok {
+                data: serde_json::json!({"updating": true, "message": "Downloading update, app will restart shortly…"}),
+            }
+        }
     }
 }
 

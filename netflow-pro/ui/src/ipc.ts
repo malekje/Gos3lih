@@ -2,7 +2,7 @@
 // Communicates with the Rust backend over a Named Pipe via Tauri commands.
 // In development mode, falls back to a mock data provider.
 
-import type { Device, Stats, PolicyPayload, IpcResponse } from "./types";
+import type { Device, Stats, PolicyPayload, IpcResponse, UpdateInfo } from "./types";
 
 const IS_TAURI = "__TAURI__" in window;
 
@@ -45,6 +45,14 @@ export async function ping(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export async function checkUpdate(): Promise<UpdateInfo> {
+  return invoke<UpdateInfo>("check_update");
+}
+
+export async function applyUpdate(): Promise<void> {
+  await invoke("apply_update");
 }
 
 // ─── Mock data for development without the Rust backend ──────────────────────
@@ -135,6 +143,18 @@ async function mockInvoke<T>(method: string, _params?: unknown): Promise<T> {
 
     case "ping":
       return { pong: true } as T;
+
+    case "check_update":
+      return {
+        available: false,
+        current_version: "0.1.0",
+        latest_version: "0.1.0",
+        download_url: "",
+        release_notes: "",
+      } as T;
+
+    case "apply_update":
+      return {} as T;
 
     default:
       return {} as T;

@@ -193,8 +193,6 @@ fn find_default_interface() -> Option<NetworkInterface> {
 
 /// Attempt NetBIOS / mDNS hostname resolution for every discovered device.
 async fn resolve_hostnames(state: &SharedState) {
-    use tokio::net::UdpSocket;
-
     let devices: Vec<_> = state
         .devices
         .iter()

@@ -13,7 +13,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
+use windivert::prelude::*;
 
 use crate::state::{DevicePolicy, SharedState};
 use crate::throttle::{BucketRegistry, Direction};
@@ -33,7 +34,7 @@ pub async fn run_packet_engine(state: Arc<SharedState>) -> Result<()> {
     let handle = windivert::WinDivert::network(
         "true",                          // filter string — capture all
         0,                               // priority
-        windivert::CloseAction::Nothing, // don't reset connections on close
+        WinDivertFlags::new(),           // no special flags
     )
     .context("Failed to open WinDivert handle (is WinDivert.dll + .sys in PATH?)")?;
 
@@ -73,7 +74,7 @@ pub async fn run_packet_engine(state: Arc<SharedState>) -> Result<()> {
 /// A blocking worker loop that pulls packets from WinDivert.
 fn worker_loop(
     id: usize,
-    handle: Arc<windivert::WinDivert>,
+    handle: Arc<windivert::WinDivert<windivert::layer::NetworkLayer>>,
     state: Arc<SharedState>,
     buckets: Arc<BucketRegistry>,
 ) {

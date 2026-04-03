@@ -1,0 +1,30 @@
+# Rust build artifacts
+/target/
+
+# Vendor libraries (downloaded at build time)
+/vendor/
+
+# Node
+/ui/node_modules/
+/ui/dist/
+
+# Tauri build output
+/ui/src-tauri/target/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Env files
+.env
+.env.*
+
+# Logs
+*.log

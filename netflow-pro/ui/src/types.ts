@@ -40,3 +40,11 @@ export interface IpcResponseError {
 }
 
 export type IpcResponse = IpcResponseOk | IpcResponseError;
+
+export interface UpdateInfo {
+  available: boolean;
+  current_version: string;
+  latest_version: string;
+  download_url: string;
+  release_notes: string;
+}

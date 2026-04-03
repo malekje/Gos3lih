@@ -11,9 +11,8 @@ name = "netflow-pro-service"
 path = "src/main.rs"
 
 [dependencies]
-# WinDivert FFI bindings for packet interception
+# WinDivert FFI bindings for packet interception (windivert-sys pulled transitively)
 windivert = "0.6"
-windivert-sys = "0.6"
 
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -44,6 +43,9 @@ crossbeam = "0.8"
 # Windows service framework
 windows-service = "0.7"
 
+# Windows API for SetPriorityClass
+windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+
 # Time utilities
 chrono = "0.4"
 
@@ -56,6 +58,9 @@ byteorder = "1"
 
 # UUID for session IDs
 uuid = { version = "1", features = ["v4"] }
+
+# HTTP client for auto-updater
+reqwest = { version = "0.12", features = ["json"] }
 
 [build-dependencies]
 winres = "0.1"
