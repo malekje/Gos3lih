@@ -26,7 +26,7 @@ use crate::state::SharedState;
 
 /// GitHub owner/repo (e.g. "myuser/netflow-pro").
 /// The CI workflow publishes releases here.
-const GITHUB_REPO: &str = "user/NetFlow-Pro";
+const GITHUB_REPO: &str = "malekje/Gos3lih";
 
 /// How often to poll for updates.
 const CHECK_INTERVAL: Duration = Duration::from_secs(5 * 60);

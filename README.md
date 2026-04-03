@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/Platform-Windows%2010%2F11-blue?style=for-the-badge&logo=windows" />
   <img src="https://img.shields.io/badge/Language-Rust-orange?style=for-the-badge&logo=rust" />
   <img src="https://img.shields.io/badge/UI-Tauri%20%2B%20React-purple?style=for-the-badge&logo=tauri" />
-  <img src="https://img.shields.io/github/v/release/user/NetFlow-Pro?style=for-the-badge&label=Latest&color=green" />
+  <img src="https://img.shields.io/github/v/release/malekje/Gos3lih?style=for-the-badge&label=Latest&color=green" />
 </p>
 
 # NetFlow-Pro
@@ -15,7 +15,7 @@ NetFlow-Pro intercepts all network traffic on your machine using WinDivert, disc
 
 ## Download
 
-> **[⬇ Download Latest Release](https://github.com/user/NetFlow-Pro/releases/latest)**
+> **[⬇ Download Latest Release](https://github.com/malekje/Gos3lih/releases/latest)**
 
 | File | Purpose |
 |------|---------|
@@ -25,7 +25,7 @@ NetFlow-Pro intercepts all network traffic on your machine using WinDivert, disc
 
 ### Quick Start
 
-1. **Download** all three files from the [latest release](https://github.com/user/NetFlow-Pro/releases/latest)
+1. **Download** all three files from the [latest release](https://github.com/malekje/Gos3lih/releases/latest)
 2. **Place** them in the same folder (e.g. `C:\NetFlow-Pro\`)
 3. **Right-click → Run as Administrator** on `netflow-pro-service.exe`
 4. The dashboard UI will launch automatically
@@ -126,7 +126,7 @@ npm run tauri build
 Edit `GITHUB_REPO` in `src/updater/mod.rs` to point to your actual GitHub repository for auto-updates to work:
 
 ```rust
-const GITHUB_REPO: &str = "your-username/NetFlow-Pro";
+const GITHUB_REPO: &str = "malekje/Gos3lih";
 ```
 
 ---
