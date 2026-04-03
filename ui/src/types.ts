@@ -1,5 +1,5 @@
-// ─── IPC Types ───────────────────────────────────────────────────────────────
-// Mirrors the Rust IPC JSON schema.
+// ─── Types ───────────────────────────────────────────────────────────────────
+// Mirrors the Rust Tauri command DTOs.
 
 export interface Device {
   mac: string;
@@ -23,23 +23,6 @@ export type PolicyPayload =
   | { type: "allow" }
   | { type: "throttle"; download_kbps: number; upload_kbps: number }
   | { type: "block" };
-
-export interface IpcRequest {
-  method: string;
-  params?: unknown;
-}
-
-export interface IpcResponseOk {
-  status: "ok";
-  data: unknown;
-}
-
-export interface IpcResponseError {
-  status: "error";
-  message: string;
-}
-
-export type IpcResponse = IpcResponseOk | IpcResponseError;
 
 export interface UpdateInfo {
   available: boolean;

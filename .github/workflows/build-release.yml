@@ -34,8 +34,8 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+            ui/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('ui/src-tauri/Cargo.lock') }}
 
       - name: Download WinDivert
         shell: pwsh
@@ -51,10 +51,7 @@ jobs:
           Expand-Archive -Path npcap-sdk.zip -DestinationPath vendor/npcap-sdk
           echo "LIB=${{ github.workspace }}\vendor\npcap-sdk\Lib\x64;${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64" >> $env:GITHUB_ENV
 
-      - name: Build release binary
-        run: cargo build --release
-
-      - name: Build Tauri UI
+      - name: Build Tauri app (single exe with embedded backend)
         shell: pwsh
         env:
           WINDIVERT_PATH: ${{ github.workspace }}\vendor\WinDivert-2.2.2-A
@@ -68,17 +65,16 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path release-artifacts | Out-Null
-          Copy-Item target/release/gos3lih-service.exe release-artifacts/
-          Copy-Item ui/src-tauri/target/release/gos3lih-ui.exe release-artifacts/
+          Copy-Item ui/src-tauri/target/release/gos3lih.exe release-artifacts/
           Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert.dll release-artifacts/
           Copy-Item vendor/WinDivert-2.2.2-A/x64/WinDivert64.sys release-artifacts/
           Compress-Archive -Path release-artifacts/* -DestinationPath Gos3lih.zip
 
-      - name: Extract version from Cargo.toml
+      - name: Extract version
         id: version
         shell: pwsh
         run: |
-          $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.*)"').Matches.Groups[1].Value
+          $version = (Select-String -Path ui/src-tauri/Cargo.toml -Pattern '^version = "(.*)"').Matches.Groups[1].Value
           echo "version=$version" >> $env:GITHUB_OUTPUT
           echo "tag=v$version-build.${{ github.run_number }}" >> $env:GITHUB_OUTPUT
 
@@ -96,12 +92,11 @@ jobs:
 
             ### How to install
             1. Download **`Gos3lih.zip`**
-            2. **Extract** all files into the same folder (e.g. `C:\Gos3lih\`)
-            3. Right-click **`gos3lih-service.exe`** → **Run as Administrator**
-            4. The dashboard UI opens automatically!
+            2. **Extract** all 3 files into the same folder (e.g. `C:\Gos3lih\`)
+            3. Install [Npcap](https://npcap.com/#download) (check **"WinPcap API-compatible Mode"**)
+            4. Right-click **`gos3lih.exe`** → **Run as Administrator**
 
-            > ⚠️ All 4 files must stay in the same folder: `gos3lih-service.exe`, `gos3lih-ui.exe`, `WinDivert.dll`, `WinDivert64.sys`
-            > 📦 Also install [Npcap](https://npcap.com/#download) (check "WinPcap API-compatible Mode") for device discovery to work.
+            > ⚠️ All 3 files must stay in the same folder: `gos3lih.exe`, `WinDivert.dll`, `WinDivert64.sys`
             > The application auto-updates — future releases will be applied automatically.
           files: |
             Gos3lih.zip

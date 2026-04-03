@@ -1,22 +1,49 @@
 [package]
-name = "gos3lih-ui"
+name = "gos3lih"
 version = "0.1.0"
 edition = "2021"
 
-[package.metadata.bundle]
-name = "Gos3lih"
-identifier = "com.gos3lih.app"
-icon = ["icons/icon.ico"]
-
 [dependencies]
+# Tauri framework
 tauri = { version = "2", features = [] }
-tauri-build = { version = "2", features = [] }
+
+# Serialization
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+
+# Async runtime
 tokio = { version = "1", features = ["full"] }
-interprocess = { version = "2", features = ["tokio"] }
+
+# Error handling
 anyhow = "1"
+
+# Logging
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Packet interception (WinDivert)
+windivert = "0.6"
+
+# Network ARP scanning (requires Npcap)
+pnet = "0.35"
+
+# Concurrency
+dashmap = "6"
+parking_lot = "0.12"
+
+# Windows priority
+windows-sys = { version = "0.59", features = ["Win32_System_Threading"] }
+
+# Auto-updater HTTP client
+reqwest = { version = "0.12", features = ["json"] }
+
+# Zip extraction for updates
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
