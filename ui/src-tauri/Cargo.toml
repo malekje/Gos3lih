@@ -20,7 +20,3 @@ tracing = "0.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
-
-[lib]
-name = "gos3lih_ui_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
