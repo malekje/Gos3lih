@@ -1,39 +1,39 @@
-//! Device Discovery Engine — ARP scanner.
+//! Device Discovery — Windows-native approach.
 //!
-//! Broadcasts ARP requests across the local subnet, collects replies to map
-//! IP → MAC, then attempts NetBIOS / reverse-DNS hostname resolution.
+//! 1. Detect local IP & subnet from `ipconfig`
+//! 2. Parallel ping sweep to populate the OS ARP cache
+//! 3. Parse `arp -a` to get IP → MAC mappings
+//!
+//! **No Npcap required.** Works on any Windows machine.
 
 use std::net::Ipv4Addr;
+use std::process::Command as StdCommand;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
-use pnet::datalink::{self, Channel, NetworkInterface};
-use pnet::packet::arp::{ArpHardwareTypes, ArpOperations, ArpPacket, MutableArpPacket};
-use pnet::packet::ethernet::{EtherTypes, EthernetPacket, MutableEthernetPacket};
-use pnet::packet::Packet;
-use pnet::util::MacAddr;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, info, warn};
 
 use crate::state::SharedState;
 
 const SCAN_INTERVAL: Duration = Duration::from_secs(30);
-const ARP_REPLY_TIMEOUT: Duration = Duration::from_secs(3);
+const PING_CONCURRENCY: usize = 50;
+const PING_TIMEOUT_MS: &str = "200";
 const NETBIOS_NS_PORT: u16 = 137;
 
 pub async fn run_discovery_loop(state: Arc<SharedState>) -> Result<()> {
-    info!("Discovery engine starting");
+    info!("Discovery engine starting (Windows-native, no Npcap needed)");
 
     loop {
         if state.is_shutdown() {
             break;
         }
 
-        if let Err(e) = perform_scan(&state).await {
-            warn!("Discovery scan failed: {e:#}");
+        match perform_scan(&state).await {
+            Ok(count) => info!("Scan complete: {count} device(s) found"),
+            Err(e) => warn!("Discovery scan failed: {e:#}"),
         }
 
-        // Wait for next scan, but break early on shutdown or manual trigger.
         for _ in 0..(SCAN_INTERVAL.as_millis() / 500) {
             if state.is_shutdown() || state.take_scan_request() {
                 break;
@@ -46,146 +46,175 @@ pub async fn run_discovery_loop(state: Arc<SharedState>) -> Result<()> {
     Ok(())
 }
 
-async fn perform_scan(state: &Arc<SharedState>) -> Result<()> {
-    let iface = find_default_interface()
-        .context("Could not find a suitable network interface")?;
+async fn perform_scan(state: &Arc<SharedState>) -> Result<usize> {
+    let (local_ip, prefix) = detect_local_network()
+        .context("Failed to detect local network")?;
 
-    // Auto-detect subnet from the interface's IPv4 address.
-    let (iface_ip, prefix) = iface
-        .ips
-        .iter()
-        .find_map(|ip| match ip {
-            pnet::ipnetwork::IpNetwork::V4(net) => Some((net.ip(), net.prefix())),
-            _ => None,
-        })
-        .context("No IPv4 address on the interface")?;
-
-    let mask: u32 = if prefix >= 32 { !0 } else { !0u32 << (32 - prefix) };
-    let subnet_ip = Ipv4Addr::from(u32::from(iface_ip) & mask);
-
+    let mask: u32 = if prefix >= 32 { !0 } else { !0u32 << (32 - prefix as u32) };
+    let subnet_ip = Ipv4Addr::from(u32::from(local_ip) & mask);
     *state.subnet.write() = (subnet_ip, prefix);
 
+    let host_count = if prefix >= 32 { 1 } else { 1u32 << (32 - prefix as u32) };
+    let base = u32::from(subnet_ip);
+
     info!(
-        "Scanning {}/{} on interface {} (local IP: {})",
-        subnet_ip, prefix, iface.name, iface_ip
+        "Scanning {subnet_ip}/{prefix} (local IP: {local_ip}, up to {} hosts)",
+        host_count.min(255) - 1
     );
 
-    let host_count = if prefix >= 32 { 1 } else { 1u32 << (32 - prefix as u32) };
-    let base: u32 = u32::from(subnet_ip);
+    // Step 1: parallel ping sweep → populates the OS ARP cache
+    ping_sweep(base, host_count.min(255)).await;
 
-    let state_clone = Arc::clone(state);
-    let iface_clone = iface.clone();
+    // Step 2: read the ARP table
+    let count = parse_arp_table(state, local_ip)?;
 
-    tokio::task::spawn_blocking(move || {
-        arp_scan(&iface_clone, base, host_count, &state_clone);
-    })
-    .await?;
-
+    // Step 3: hostname resolution for newly discovered devices
     resolve_hostnames(state).await;
 
-    Ok(())
+    Ok(count)
 }
 
-fn arp_scan(
-    iface: &NetworkInterface,
-    base: u32,
-    host_count: u32,
-    state: &SharedState,
-) {
-    let channel = match datalink::channel(iface, Default::default()) {
-        Ok(Channel::Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => {
-            warn!("Unsupported channel type on {}", iface.name);
-            return;
-        }
-        Err(e) => {
-            error!("Failed to open datalink channel: {e}");
-            return;
-        }
-    };
+// ── Network detection via ipconfig ──────────────────────────────────────────
 
-    let (mut tx, mut rx) = channel;
+fn detect_local_network() -> Result<(Ipv4Addr, u8)> {
+    let output = StdCommand::new("ipconfig")
+        .output()
+        .context("Failed to run ipconfig")?;
 
-    let source_mac = match iface.mac {
-        Some(m) => m,
-        None => {
-            warn!("Interface {} has no MAC address", iface.name);
-            return;
-        }
-    };
+    let text = String::from_utf8_lossy(&output.stdout);
 
-    let source_ip: Ipv4Addr = iface
-        .ips
-        .iter()
-        .find_map(|ip| match ip {
-            pnet::ipnetwork::IpNetwork::V4(net) => Some(net.ip()),
-            _ => None,
-        })
-        .unwrap_or(Ipv4Addr::UNSPECIFIED);
+    let mut found_ip: Option<Ipv4Addr> = None;
 
-    for i in 1..host_count.min(255) {
-        let target_ip = Ipv4Addr::from(base + i);
-        if let Some(pkt) = build_arp_request(source_mac, source_ip, target_ip) {
-            let _ = tx.send_to(&pkt, None);
-        }
-    }
+    for line in text.lines() {
+        let line = line.trim();
 
-    let deadline = std::time::Instant::now() + ARP_REPLY_TIMEOUT;
-    while std::time::Instant::now() < deadline {
-        if let Ok(frame) = rx.next() {
-            if let Some(eth) = EthernetPacket::new(frame) {
-                if eth.get_ethertype() == EtherTypes::Arp {
-                    if let Some(arp) = ArpPacket::new(eth.payload()) {
-                        if arp.get_operation() == ArpOperations::Reply {
-                            let sender_ip = arp.get_sender_proto_addr();
-                            let sender_mac_p = arp.get_sender_hw_addr();
-                            let mac_bytes: [u8; 6] = [
-                                sender_mac_p.0, sender_mac_p.1, sender_mac_p.2,
-                                sender_mac_p.3, sender_mac_p.4, sender_mac_p.5,
-                            ];
-                            debug!("ARP reply: {sender_ip} → {sender_mac_p}");
-                            state.upsert_device(mac_bytes, sender_ip);
-                        }
+        // Match "IPv4 Address. . . . . . . . . . . : 192.168.x.x"
+        if (line.contains("IPv4") || line.contains("IP Address")) && line.contains(':') {
+            if let Some(ip_str) = line.rsplit(':').next() {
+                if let Ok(ip) = ip_str.trim().parse::<Ipv4Addr>() {
+                    if is_private_ip(ip) {
+                        found_ip = Some(ip);
                     }
                 }
             }
         }
+
+        // "Subnet Mask . . . . . . . . . . . : 255.255.255.0"
+        if line.contains("Subnet Mask") && line.contains(':') {
+            if let (Some(ip), Some(mask_str)) = (found_ip, line.rsplit(':').next()) {
+                if let Ok(mask) = mask_str.trim().parse::<Ipv4Addr>() {
+                    let prefix = u32::from(mask).count_ones() as u8;
+                    info!("Detected network: {ip}/{prefix} (mask {mask})");
+                    return Ok((ip, prefix));
+                }
+            }
+        }
     }
+
+    // If we got an IP but no mask line yet, assume /24
+    if let Some(ip) = found_ip {
+        info!("Detected IP {ip}, assuming /24 subnet");
+        return Ok((ip, 24));
+    }
+
+    anyhow::bail!(
+        "No private IPv4 found in ipconfig output. \
+         Make sure you're connected to a local network."
+    )
 }
 
-fn build_arp_request(
-    src_mac: MacAddr,
-    src_ip: Ipv4Addr,
-    target_ip: Ipv4Addr,
-) -> Option<Vec<u8>> {
-    let mut buf = vec![0u8; 42];
-    {
-        let mut eth = MutableEthernetPacket::new(&mut buf)?;
-        eth.set_destination(MacAddr::broadcast());
-        eth.set_source(src_mac);
-        eth.set_ethertype(EtherTypes::Arp);
-    }
-    {
-        let mut arp = MutableArpPacket::new(&mut buf[14..])?;
-        arp.set_hardware_type(ArpHardwareTypes::Ethernet);
-        arp.set_protocol_type(EtherTypes::Ipv4);
-        arp.set_hw_addr_len(6);
-        arp.set_proto_addr_len(4);
-        arp.set_operation(ArpOperations::Request);
-        arp.set_sender_hw_addr(src_mac);
-        arp.set_sender_proto_addr(src_ip);
-        arp.set_target_hw_addr(MacAddr::zero());
-        arp.set_target_proto_addr(target_ip);
-    }
-    Some(buf)
+fn is_private_ip(ip: Ipv4Addr) -> bool {
+    let o = ip.octets();
+    o[0] == 10
+        || (o[0] == 172 && (16..=31).contains(&o[1]))
+        || (o[0] == 192 && o[1] == 168)
 }
 
-fn find_default_interface() -> Option<NetworkInterface> {
-    datalink::interfaces()
-        .into_iter()
-        .filter(|i| i.is_up() && !i.is_loopback() && i.mac.is_some())
-        .find(|i| i.ips.iter().any(|ip| ip.is_ipv4()))
+// ── Ping sweep ──────────────────────────────────────────────────────────────
+
+async fn ping_sweep(base: u32, host_count: u32) {
+    use std::os::windows::process::CommandExt;
+    use tokio::sync::Semaphore;
+
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+    let sem = Arc::new(Semaphore::new(PING_CONCURRENCY));
+    let mut tasks = Vec::new();
+
+    for i in 1..host_count {
+        let ip = Ipv4Addr::from(base + i);
+        let permit = sem.clone();
+        tasks.push(tokio::spawn(async move {
+            let _permit = permit.acquire().await;
+            let _ = tokio::task::spawn_blocking(move || {
+                let _ = StdCommand::new("ping")
+                    .args(["-n", "1", "-w", PING_TIMEOUT_MS, &ip.to_string()])
+                    .creation_flags(CREATE_NO_WINDOW)
+                    .output();
+            })
+            .await;
+        }));
+    }
+
+    for t in tasks {
+        let _ = t.await;
+    }
+
+    debug!("Ping sweep done — {} hosts probed", host_count - 1);
 }
+
+// ── ARP table parsing ───────────────────────────────────────────────────────
+
+fn parse_arp_table(state: &SharedState, local_ip: Ipv4Addr) -> Result<usize> {
+    use std::os::windows::process::CommandExt;
+
+    let output = StdCommand::new("arp")
+        .args(["-a"])
+        .creation_flags(0x0800_0000)
+        .output()
+        .context("Failed to run arp -a")?;
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut count = 0;
+
+    for line in text.lines() {
+        let parts: Vec<&str> = line.split_whitespace().collect();
+        // Typical: "  192.168.1.1          aa-bb-cc-dd-ee-ff     dynamic"
+        if parts.len() >= 3 && parts[2] == "dynamic" {
+            if let (Ok(ip), Some(mac)) = (parts[0].parse::<Ipv4Addr>(), parse_win_mac(parts[1]))
+            {
+                // Skip our own IP and broadcast
+                if ip == local_ip {
+                    continue;
+                }
+                if mac == [0xff; 6] {
+                    continue;
+                }
+                debug!("ARP: {ip} → {:02X}:{:02X}:{:02X}:{:02X}:{:02X}:{:02X}",
+                    mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+                state.upsert_device(mac, ip);
+                count += 1;
+            }
+        }
+    }
+
+    Ok(count)
+}
+
+/// Parse Windows-style MAC "aa-bb-cc-dd-ee-ff" → [u8; 6].
+fn parse_win_mac(s: &str) -> Option<[u8; 6]> {
+    let parts: Vec<&str> = s.split('-').collect();
+    if parts.len() != 6 {
+        return None;
+    }
+    let mut mac = [0u8; 6];
+    for (i, part) in parts.iter().enumerate() {
+        mac[i] = u8::from_str_radix(part, 16).ok()?;
+    }
+    Some(mac)
+}
+
+// ── Hostname resolution ─────────────────────────────────────────────────────
 
 async fn resolve_hostnames(state: &SharedState) {
     let devices: Vec<_> = state
@@ -204,6 +233,7 @@ async fn resolve_hostnames(state: &SharedState) {
             }
         }
 
+        // Try NetBIOS name query first
         match netbios_name_query(ip).await {
             Ok(name) if !name.is_empty() => {
                 if let Some(mut dev) = state.devices.get_mut(&mac) {
@@ -214,11 +244,11 @@ async fn resolve_hostnames(state: &SharedState) {
             _ => {}
         }
 
-        if let Ok(name) = tokio::task::spawn_blocking(move || {
+        // Fallback: reverse DNS
+        if let Ok(Ok(name)) = tokio::task::spawn_blocking(move || {
             dns_lookup_reverse(ip)
         })
         .await
-        .unwrap_or(Ok(String::new()))
         {
             if !name.is_empty() {
                 if let Some(mut dev) = state.devices.get_mut(&mac) {
@@ -272,7 +302,9 @@ fn dns_lookup_reverse(ip: Ipv4Addr) -> Result<String> {
     match addr.to_socket_addrs() {
         Ok(mut addrs) => {
             if let Some(a) = addrs.next() {
-                Ok(a.to_string())
+                let host = a.to_string();
+                // Strip the ":0" port suffix
+                Ok(host.trim_end_matches(":0").to_string())
             } else {
                 Ok(String::new())
             }

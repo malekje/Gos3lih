@@ -43,19 +43,13 @@ jobs:
           Invoke-WebRequest -Uri "https://github.com/basil00/Divert/releases/download/v2.2.2/WinDivert-2.2.2-A.zip" -OutFile WinDivert.zip
           Expand-Archive -Path WinDivert.zip -DestinationPath vendor
           echo "WINDIVERT_PATH=${{ github.workspace }}\vendor\WinDivert-2.2.2-A" >> $env:GITHUB_ENV
-
-      - name: Download Npcap SDK
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://npcap.com/dist/npcap-sdk-1.13.zip" -OutFile npcap-sdk.zip
-          Expand-Archive -Path npcap-sdk.zip -DestinationPath vendor/npcap-sdk
-          echo "LIB=${{ github.workspace }}\vendor\npcap-sdk\Lib\x64;${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64" >> $env:GITHUB_ENV
+          echo "LIB=${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64" >> $env:GITHUB_ENV
 
       - name: Build Tauri app (single exe with embedded backend)
         shell: pwsh
         env:
           WINDIVERT_PATH: ${{ github.workspace }}\vendor\WinDivert-2.2.2-A
-          LIB: ${{ github.workspace }}\vendor\npcap-sdk\Lib\x64;${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64
+          LIB: ${{ github.workspace }}\vendor\WinDivert-2.2.2-A\x64
         run: |
           cd ui
           npm install
@@ -93,10 +87,10 @@ jobs:
             ### How to install
             1. Download **`Gos3lih.zip`**
             2. **Extract** all 3 files into the same folder (e.g. `C:\Gos3lih\`)
-            3. Install [Npcap](https://npcap.com/#download) (check **"WinPcap API-compatible Mode"**)
-            4. Right-click **`gos3lih.exe`** → **Run as Administrator**
+            3. Right-click **`gos3lih.exe`** → **Run as Administrator**
 
             > ⚠️ All 3 files must stay in the same folder: `gos3lih.exe`, `WinDivert.dll`, `WinDivert64.sys`
+            > ⚠️ Must run as **Administrator** for packet interception to work.
             > The application auto-updates — future releases will be applied automatically.
           files: |
             Gos3lih.zip

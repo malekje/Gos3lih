@@ -24,9 +24,6 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Packet interception (WinDivert)
 windivert = "0.6"
 
-# Network ARP scanning (requires Npcap)
-pnet = "0.35"
-
 # Concurrency
 dashmap = "6"
 parking_lot = "0.12"
