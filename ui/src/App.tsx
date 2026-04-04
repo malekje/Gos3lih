@@ -4,7 +4,7 @@ import { DeviceList } from "./components/DeviceList";
 import { Header } from "./components/Header";
 import { UpdateBanner } from "./components/UpdateBanner";
 import { getDevices, getStats, checkUpdate, getEngineStatus } from "./ipc";
-import type { Device, Stats, UpdateInfo, EngineStatus } from "./types";
+import type { Device, Stats, UpdateInfo } from "./types";
 
 const POLL_INTERVAL = 2000; // 2 seconds
 
